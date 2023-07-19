@@ -30,6 +30,7 @@ class BlastConfig(BaseConfig):
     e_threshold: float
     n_jobs: Optional[int] = 20
     pred_batch_size: Optional[int] = 10_000
+    use_gpu: Optional[bool] = False
 
 
 class BlastMatching(BaseModel):
@@ -89,8 +90,12 @@ class BlastMatching(BaseModel):
             f.writelines(test_fasta.replace("'", "").replace('"', ""))
         if os.path.exists(f"{self.working_directory}/results_raw.csv"):
             os.remove(f"{self.working_directory}/results_raw.csv")
+        blastp_command = "blastp"
+        if self.config.use_gpu:
+            logger.info("Using GPU for BLASTp")
+            blastp_command = "blastp -gpu t"
         os.system(
-            f"blastp -db {db_name} -evalue {self.config.e_threshold} -query {self.working_directory}/_test.fasta -out {self.working_directory}/results_raw.csv -max_target_seqs {self.config.n_neighbours} -outfmt 10 -num_threads {self.config.n_jobs}"
+            f"{blastp_command} -db {db_name} -evalue {self.config.e_threshold} -query {self.working_directory}/_test.fasta -out {self.working_directory}/results_raw.csv -max_target_seqs {self.config.n_neighbours} -outfmt 10 -num_threads {self.config.n_jobs}"
         )
         os.remove(f"{self.working_directory}/_test.fasta")
         return f"{self.working_directory}/results_raw.csv"
