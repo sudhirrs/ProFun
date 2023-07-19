@@ -31,6 +31,7 @@ class BlastConfig(BaseConfig):
     n_jobs: Optional[int] = 20
     pred_batch_size: Optional[int] = 10_000
     use_gpu: Optional[bool] = False
+    num_gpus: Optional[int] = 1
 
 
 class BlastMatching(BaseModel):
@@ -75,9 +76,12 @@ class BlastMatching(BaseModel):
         logger.info(
             f"Written fasta file. Number of duplicated id lines: {len(all_id_lines) - len(set(all_id_lines))}"
         )
-
+        makeblastdb_command = "makeblastdb"
+        if self.config.use_gpu:
+            logger.info("Using GPU for makeblastdb")
+            makeblastdb_command = "makeblastdb -sort_volumes"
         x = subprocess.check_output(
-            f"makeblastdb -in {self.working_directory}/_temp.fasta -dbtype prot -parse_seqids".split(),
+            f"{makeblastdb_command} -in {self.working_directory}/_temp.fasta -dbtype prot -parse_seqids".split(),
             stderr=sys.stdout,
         )
         logger.info(f"makeblastdb output: {x}")
@@ -93,7 +97,7 @@ class BlastMatching(BaseModel):
         blastp_command = "blastp"
         if self.config.use_gpu:
             logger.info("Using GPU for BLASTp")
-            blastp_command = "blastp -gpu t"
+            blastp_command = "blastp -gpu t "
         os.system(
             f"{blastp_command} -db {db_name} -evalue {self.config.e_threshold} -query {self.working_directory}/_test.fasta -out {self.working_directory}/results_raw.csv -max_target_seqs {self.config.n_neighbours} -outfmt 10 -num_threads {self.config.n_jobs}"
         )
